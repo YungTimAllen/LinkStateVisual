@@ -14,56 +14,81 @@ import yaml
 
 
 def main(args):
-
     fp = open(args.input_cli, 'r')
-    lsdb = fsm_to_dict(fsm_parse(fp.read()))
+    # Run input cli through TextFSM
+    fsm_output = fsm_parse(fp.read())
+    # Feed TextFSM output to parser (To DML)
+    lsdb = fsm_to_dict(fsm_output)
     fp.close()
 
+    # If Yaml dump switch set, make it so!
     if args.dump:
         print(yaml.dump(lsdb))
 
-    build_nx_from_lsdb(lsdb)
+    # Create + draw (to png) nx MultiGraph from data-structure given by fsm_to_dict()
+    draw_graphviz( build_nx_from_lsdb(lsdb) )
+
+
+def draw_graphviz(graph, output_file="multi.png"):
+    # Weight labels
+    for u, v, d in graph.edges(data=True):
+        d['label'] = d.get('weight', '')
+
+    A = to_agraph(graph)
+    A.layout('dot')
+    A.draw(output_file)
 
 
 def build_nx_from_lsdb(lsdb):
+    """
+    Given DML, interprets LSDB as a MultiDiGraph
 
-    g = nx.Graph()
+    :param lsdb:  Data structure of Dicts and Lists (DML-ready)
+    :return:
+    """
+    g = nx.MultiDiGraph()
 
-    for lsr in lsdb["LSRs"]:
-        for lsa in lsdb["LSRs"][lsr]:
+    for lsr in lsdb["RouterLSID"]:
+        for lsa in lsdb["RouterLSID"][lsr]:
 
             if "Stub" in lsa["ConnectedTo"]:
-                g.add_edge(lsr, lsa["LinkID"], color='red')
+                g.add_edge(lsr, lsa["LinkID"], color='red', weight=lsa["TOS0Metrics"])
                 if "255.255.255.255" not in lsa["LinkData"]:
                     g.nodes[lsa["LinkID"]]["shape"] = 'rectangle'
 
             if "Transit" in lsa["ConnectedTo"]:
-                g.add_edge(lsr, lsa["LinkID"])
+                g.add_edge(lsr, lsa["LinkID"], weight=lsa["TOS0Metrics"])
                 # https://graphviz.org/doc/info/shapes.html#polygon
                 g.nodes[lsa["LinkID"]]["shape"] = 'rectangle'
 
             if "point-to-point" in lsa["ConnectedTo"]:
-                g.add_edge(lsr, lsa["LinkID"], color='blue')
+                g.add_edge(lsr, lsa["LinkID"], color='blue', weight=lsa["TOS0Metrics"])
 
-    for lsr in lsdb["LSRs"]:
+    # Set shape for all nodes to circle
+    for lsr in lsdb["RouterLSID"]:
         g.nodes[lsr]["shape"] = 'circle'
 
+    # LSDB originator gets a double-circle
     g.nodes[lsdb["ThisLSR"]]["shape"] = 'doublecircle'
 
-    A = to_agraph(g)
-    A.layout('dot')
-    A.draw('multi.png')
+    return g
 
 
 def fsm_to_dict(data):
+    """
+    Given TextFSM data, parses into Dict of Dicts and Lists (DML-ready structure)
+
+    :param data: TextFSM List of Lists, see return of fsm_parse()
+    :return: Data structure of Dicts and Lists (DML-ready, print as Yaml by --dump)
+    """
     d = {}
     d["ThisLSR"] = data[0][0]
     d["PID"] = data[0][1]
     d["Area"] = data[0][2]
-    d["LSRs"] = {}
+    d["RouterLSID"] = {}
 
     for line in data:
-        d["LSRs"][line[6]] = []
+        d["RouterLSID"][line[6]] = []
 
     for line in data:
         t = {}
@@ -81,7 +106,7 @@ def fsm_to_dict(data):
         t["TOSMetrics"] = line[17]
         t["TOS0Metrics"] = line[18]
 
-        d["LSRs"][line[6]].append(t)
+        d["RouterLSID"][line[6]].append(t)
 
     return d
 
