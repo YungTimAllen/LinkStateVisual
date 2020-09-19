@@ -5,6 +5,7 @@
 Parses Cisco IOS CLI output for "show ip ospf database router" (the OSPF LSDB) to YAML, then creates a Networkx graph, which is rendered with pyGraphViz (To PNG file)
 
 Inspired by https://github.com/theclam/ospfcli2dot
+
 Command FSM template sourced from https://github.com/networktocode/ntc-templates
 
 ## Requires
