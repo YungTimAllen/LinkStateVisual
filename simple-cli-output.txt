@@ -105,7 +105,7 @@ R4#show ip ospf database router
      (Link ID) Neighboring Router ID: 3.3.3.3
      (Link Data) Router Interface address: 10.3.4.2
       Number of MTID metrics: 0
-       TOS 0 Metrics: 1
+       TOS 0 Metrics: 1000
 
     Link connected to: a Stub Network
      (Link ID) Network/subnet number: 10.3.4.0

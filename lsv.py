@@ -12,6 +12,8 @@ from networkx.drawing.nx_agraph import to_agraph
 import re
 import yaml
 
+DEFAULT_OUTFILE = "multi.png"
+
 
 def main(args):
     fp = open(args.input_cli, 'r')
@@ -26,10 +28,10 @@ def main(args):
         print(yaml.dump(lsdb))
 
     # Create + draw (to png) nx MultiGraph from data-structure given by fsm_to_dict()
-    draw_graphviz( build_nx_from_lsdb(lsdb) )
+    draw_graphviz( build_nx_from_lsdb(lsdb), args.out if args.out else DEFAULT_OUTFILE)
 
 
-def draw_graphviz(graph, output_file="multi.png"):
+def draw_graphviz(graph, output_file=DEFAULT_OUTFILE):
     # Weight labels
     for u, v, d in graph.edges(data=True):
         d['label'] = d.get('weight', '')
@@ -125,6 +127,7 @@ def fsm_parse(file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='LSDB Visualiser')
     parser.add_argument("input_cli", help="Txt containing CLI output of \"show ip ospf database router\"")
+    parser.add_argument("--out", help="Output file name, defaults to {}".format(DEFAULT_OUTFILE))
     parser.add_argument("--dump", action='store_true', help="Will print LSDB object as Yaml to stdout")
     main(parser.parse_args())
 
