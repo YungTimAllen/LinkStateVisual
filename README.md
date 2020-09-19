@@ -38,7 +38,7 @@ Command FSM template sourced from https://github.com/networktocode/ntc-templates
 
 ```
 $ ./lsv.py -h
-usage: lsv.py [-h] [--dump] input_cli
+usage: lsv.py [-h] [--out OUT] [--dump] input_cli
 
 LSDB Visualiser
 
@@ -47,6 +47,7 @@ positional arguments:
 
 optional arguments:
   -h, --help  show this help message and exit
+  --out OUT   Output file name, defaults to multi.png
   --dump      Will print LSDB object as Yaml to stdout
 ```
 
