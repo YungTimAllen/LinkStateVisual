@@ -6,7 +6,7 @@ Parses Cisco IOS CLI output for "show ip ospf database router" (the OSPF LSDB) t
 
 Inspired by https://github.com/theclam/ospfcli2dot
 
-Command FSM template sourced from https://github.com/networktocode/ntc-templates
+Command FSM template and CLITable code sourced from https://github.com/networktocode/ntc-templates
 
 ## Requires
 
