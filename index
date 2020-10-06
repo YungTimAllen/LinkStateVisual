@@ -1,0 +1,2 @@
+Template, Hostname, Platform, Command
+cisco_ios_show_ip_ospf_database_router.textfsm, .*, cisco_ios, sh[[ow]] ip ospf data[[base]] r[[outer]]

@@ -7,121 +7,120 @@
 
 import argparse
 import networkx as nx
-import textfsm
 from networkx.drawing.nx_agraph import to_agraph
+from textfsm import clitable
 import re
 import yaml
+
 
 DEFAULT_OUTFILE = "multi.png"
 
 
 def main(args):
-    fp = open(args.input_cli, 'r')
-    # Run input cli through TextFSM
-    fsm_output = fsm_parse(fp.read())
-    # Feed TextFSM output to parser (To DML)
-    lsdb = fsm_to_dict(fsm_output)
-    fp.close()
+    with open(args.input_cli, 'r') as fp:
+        # Run input cli through clitable
+        fsm_output = fsm_parse(fp.read())
 
-    # If Yaml dump switch set, make it so!
-    if args.dump:
-        print(yaml.dump(lsdb))
+        # Parse LSDB to Network X object, then print to file
+        LSV(fsm_output, DEFAULT_OUTFILE).run()
 
-    # Create + draw (to png) nx MultiGraph from data-structure given by fsm_to_dict()
-    draw_graphviz( build_nx_from_lsdb(lsdb), args.out if args.out else DEFAULT_OUTFILE)
+        # If Yaml dump switch set, make it so!
+        if args.dump:
+            print(yaml.dump(fsm_output))
 
 
-def draw_graphviz(graph, output_file=DEFAULT_OUTFILE):
-    # Weight labels
-    for u, v, d in graph.edges(data=True):
-        d['label'] = d.get('weight', '')
+def fsm_parse(file, cmd="show ip ospf database router", platform="cisco_ios"):
 
-    A = to_agraph(graph)
-    A.layout('dot')
-    A.draw(output_file)
+    def clitable_to_dict(cli_tbl) -> list:
+        """Convert TextFSM cli_table object to list of dictionaries."""
+        objs = []
+        for row in cli_tbl:
+            temp_dict = {}
+            for index, element in enumerate(row):
+                temp_dict[cli_tbl.header[index].lower()] = element
+            objs.append(temp_dict)
+
+        return objs
+
+    # Index is a file that exists in the same directory as the FSMTemplates
+    cli_table = clitable.CliTable("index", '.')
+    attrs = {'Command': cmd, 'platform': platform}
+
+    # Inline regex removes IOS shell prompt if seen on a line e.g. "hostname# "
+    cli_table.ParseCmd(re.sub(r".*#.*\n", '', file), attrs)
+
+    return clitable_to_dict(cli_table)
 
 
-def build_nx_from_lsdb(lsdb):
+class LSV:
     """
-    Given DML, interprets LSDB as a MultiDiGraph
+    Requires:
+    redhat: graphviz-devel python3-dev graphviz pkg-config
+    debian: python3-dev graphviz libgraphviz-dev pkg-config
 
-    :param lsdb:  Data structure of Dicts and Lists (DML-ready)
-    :return:
+    Requires:
+    import networkx as nx
+    from networkx.drawing.nx_agraph import to_agraph
     """
-    g = nx.MultiDiGraph()
+    def __init__(self, lsdb, filename="output.png"):
+        self.lsdb = lsdb
+        self.filename = filename
 
-    for lsr in lsdb["RouterLSID"]:
-        for lsa in lsdb["RouterLSID"][lsr]:
+    def run(self):
+        """
+        Calls build_nx_from_lsdb(self.lsdb) then draw_graphviz(g)
+        i.e. Builds the nx graph object then writes to file + returns written path
+        :return: str: Path to image file rendered
+        """
+        g = self.build_nx_from_lsdb(self.lsdb)
+        return self.draw_graphviz(g)
 
-            if "Stub" in lsa["ConnectedTo"]:
-                g.add_edge(lsr, lsa["LinkID"], color='red', weight=lsa["TOS0Metrics"])
-                if "255.255.255.255" not in lsa["LinkData"]:
-                    g.nodes[lsa["LinkID"]]["shape"] = 'rectangle'
+    @staticmethod
+    def build_nx_from_lsdb(lsdb):
+        """
+        Given structured data, interprets LSDB as a MultiDiGraph
+        :param lsdb:  List of LSAs
+        :return: networkx graph obj
+        """
+        g = nx.MultiDiGraph()
 
-            if "Transit" in lsa["ConnectedTo"]:
-                g.add_edge(lsr, lsa["LinkID"], weight=lsa["TOS0Metrics"])
-                # https://graphviz.org/doc/info/shapes.html#polygon
-                g.nodes[lsa["LinkID"]]["shape"] = 'rectangle'
+        for lsa in lsdb:
+            if "Stub" in lsa["ls_link_type"]:
+                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], color='red', weight=lsa["ls_tos_0_metrics"])
+                if "255.255.255.255" not in lsa["ls_link_data"]:
+                    g.nodes[lsa["ls_link_id"]]["shape"] = 'rectangle'
 
-            if "point-to-point" in lsa["ConnectedTo"]:
-                g.add_edge(lsr, lsa["LinkID"], color='blue', weight=lsa["TOS0Metrics"])
+            if "Transit" in lsa["ls_link_type"]:
+                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], weight=lsa["ls_tos_0_metrics"])
+                g.nodes[lsa["ls_link_id"]]["shape"] = 'rectangle'
 
-    # Set shape for all nodes to circle
-    for lsr in lsdb["RouterLSID"]:
-        g.nodes[lsr]["shape"] = 'circle'
+            if "point-to-point" in lsa["ls_link_type"]:
+                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], color='blue', weight=lsa["ls_tos_0_metrics"])
 
-    # LSDB originator gets a double-circle
-    g.nodes[lsdb["ThisLSR"]]["shape"] = 'doublecircle'
+        # Set shape for all nodes to circle
+        for lsa in lsdb:
+            g.nodes[lsa["lsa_id"]]["shape"] = 'circle'
 
-    return g
+        # LSDB originator gets a double-circle
+        g.nodes[lsdb[0]["router_id"]]["shape"] = 'doublecircle'
 
+        # Weight labels
+        for u, v, d in g.edges(data=True):
+            d['label'] = d.get('weight', '')
 
-def fsm_to_dict(data):
-    """
-    Given TextFSM data, parses into Dict of Dicts and Lists (DML-ready structure)
+        return g
 
-    :param data: TextFSM List of Lists, see return of fsm_parse()
-    :return: Data structure of Dicts and Lists (DML-ready, print as Yaml by --dump)
-    """
-    d = {}
-    d["ThisLSR"] = data[0][0]
-    d["PID"] = data[0][1]
-    d["Area"] = data[0][2]
-    d["RouterLSID"] = {}
+    def draw_graphviz(self, graph):
+        """
+        Given a nx graph object, prints (draws) to file and returns written filename
+        :param graph: NetworkX Graph object
+        :return:
+        """
+        g = to_agraph(graph)
+        g.layout('dot')
+        g.draw(self.filename)
 
-    for line in data:
-        d["RouterLSID"][line[6]] = []
-
-    for line in data:
-        t = {}
-        t["LSAge"] = line[3]
-        t["Options"] = line[4]
-        t["LSType"] = line[5]
-        t["LSID"] = line[6]
-        t["AdvertisingRouter"] = line[7]
-        t["LSSeqNo"] = line[8]
-        t["Checksum"] = line[9]
-        t["Length"] = line[10]
-        t["ConnectedTo"] = line[14]
-        t["LinkID"] = line[15]
-        t["LinkData"] = line[16]
-        t["TOSMetrics"] = line[17]
-        t["TOS0Metrics"] = line[18]
-
-        d["RouterLSID"][line[6]].append(t)
-
-    return d
-
-
-def fsm_parse(file):
-    """Feeds CLI output to TextFSM file
-
-    :param file: ml-string from file.read():
-    :return: List of lists, parsed matches from TextFSM
-    """
-    with open("ios_show_ip_ospf_database_router.fsm") as fp_fsm:
-        template = textfsm.TextFSM(fp_fsm)
-    return template.ParseText(re.sub(r".*#.*\n", '', file))
+        return self.filename
 
 
 if __name__ == "__main__":
