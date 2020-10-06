@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-# sudo apt-get install python3-dev graphviz libgraphviz-dev pkg-config
 # sudo pip3 install pygraphviz
 # sudo pip3 install networkx
 # sudo pip3 install textfsm
@@ -21,18 +20,28 @@ def main(args):
         # Run input cli through clitable
         fsm_output = fsm_parse(fp.read())
 
-        # Parse LSDB to Network X object, then print to file
-        LSV(fsm_output, DEFAULT_OUTFILE).run()
+        # Parse LSDB to NetworkX object, then write to file
+        LSV(fsm_output, args.out if args.out else DEFAULT_OUTFILE).run()
 
         # If Yaml dump switch set, make it so!
         if args.dump:
             print(yaml.dump(fsm_output))
 
 
-def fsm_parse(file, cmd="show ip ospf database router", platform="cisco_ios"):
-
+def fsm_parse(mls, cmd="show ip ospf database router", platform="cisco_ios"):
+    """
+    Runs CLITable for given mls, using the given command, for the given platform
+    :param mls: Multi-line string containing Cisco IOS CLI output for a command
+    :param cmd: Command to run CLITable with
+    :param platform: Platform to rune CLITable with
+    :return: Structured Data (DML-Ready) return from CLITable
+    """
     def clitable_to_dict(cli_tbl) -> list:
-        """Convert TextFSM cli_table object to list of dictionaries."""
+        """
+        Sourced from github.com/ntc-templates
+        :param cli_tbl: CLITable object
+        :return: Structured Data (DML-Ready)
+        """
         objs = []
         for row in cli_tbl:
             temp_dict = {}
@@ -42,18 +51,20 @@ def fsm_parse(file, cmd="show ip ospf database router", platform="cisco_ios"):
 
         return objs
 
-    # Index is a file that exists in the same directory as the FSMTemplates
+    # Index is a file that exists in the same directory as the FSMTemplate templates
     cli_table = clitable.CliTable("index", '.')
     attrs = {'Command': cmd, 'platform': platform}
 
     # Inline regex removes IOS shell prompt if seen on a line e.g. "hostname# "
-    cli_table.ParseCmd(re.sub(r".*#.*\n", '', file), attrs)
+    cli_table.ParseCmd(re.sub(r".*#.*\n", '', mls), attrs)
 
     return clitable_to_dict(cli_table)
 
 
 class LSV:
     """
+    Link-State Visualiser Class
+
     Requires:
     redhat: graphviz-devel python3-dev graphviz pkg-config
     debian: python3-dev graphviz libgraphviz-dev pkg-config
