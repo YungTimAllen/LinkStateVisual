@@ -1,5 +1,5 @@
 Value Filldown ROUTER_ID (\d+\.\d+\.\d+\.\d+)
-Value Filldown PROCESS_ID (\d+)
+Value Filldown PROCESS_ID (\S+)
 Value Filldown AREA (\d+\.\d+\.\d+\.\d+|\d+)
 Value Filldown LSA_AGE (\d+)
 Value Filldown LSA_OPTIONS (.+)
@@ -21,10 +21,12 @@ Value LS_TOS_0_METRICS (\d+)
 Start
   ^\s*OSPF\s+Router\s+with\s+ID\s+\(${ROUTER_ID}\)\s+\(Process\s+ID\s+${PROCESS_ID}\)
   ^\s*Router\s+Link\s+States\s+\(Area ${AREA}\) -> LSAInfo
+  ^\s+Routing Bit Set on this LSA -> LSAInfo
   ^\s*$$
   ^. -> Error
 
 LSAInfo
+  ^\s+Rout.*
   ^\s+LS\s+age:\s+${LSA_AGE}
   ^\s+Options:\s+\(${LSA_OPTIONS}\)
   ^\s+LS\s+Type:\s+${LSA_TYPE}
@@ -43,10 +45,11 @@ LSAs
   ^\s+Link\s+connected\s+to:\s+${LS_LINK_TYPE}$$
   ^\s+\(Link ID\)\s+((Network\/subnet\s+number)|(Designated\s+Router\s+address)|(Neighboring\s+Router ID)):\s+${LS_LINK_ID}
   ^\s+\(Link Data\)\s+((Network\s+Mask)|(Router\s+Interface\s+address)):\s+${LS_LINK_DATA}
-  ^\s+Number\s+of\s+MTID\s+metrics:\s+${LS_MTID_METRICS}
+  ^\s+Number\s+of\s+(MTID|TOS)\s+metrics:\s+${LS_MTID_METRICS}
   ^\s+TOS\s+0\s+Metrics:\s+${LS_TOS_0_METRICS} -> Next.Record
   ^\s+LS\s+age:\s+${LSA_AGE} -> LSAInfo
   ^\s+Router\s+Link\s+States\s+\(Area ${AREA}\) -> LSAInfo
+  ^\s+Routing Bit Set on this LSA -> LSAInfo
   ^\s*$$
   ^. -> Error
 
