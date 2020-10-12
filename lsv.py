@@ -64,11 +64,9 @@ def fsm_parse(mls, cmd="show ip ospf database router", platform="cisco_ios"):
 class LSV:
     """
     Link-State Visualiser Class
-
     Requires:
     redhat: graphviz-devel python3-dev graphviz pkg-config
     debian: python3-dev graphviz libgraphviz-dev pkg-config
-
     Requires:
     import networkx as nx
     from networkx.drawing.nx_agraph import to_agraph
@@ -96,17 +94,19 @@ class LSV:
         g = nx.MultiDiGraph()
 
         for lsa in lsdb:
+
+
             if "Stub" in lsa["ls_link_type"]:
-                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], color='red', weight=lsa["ls_tos_0_metrics"])
+                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], color='red', weight=lsa["ls_tos_0_metrics"], area=lsa["area"])
                 if "255.255.255.255" not in lsa["ls_link_data"]:
                     g.nodes[lsa["ls_link_id"]]["shape"] = 'rectangle'
 
             if "Transit" in lsa["ls_link_type"]:
-                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], weight=lsa["ls_tos_0_metrics"])
+                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], weight=lsa["ls_tos_0_metrics"], area=lsa["area"])
                 g.nodes[lsa["ls_link_id"]]["shape"] = 'rectangle'
 
             if "point-to-point" in lsa["ls_link_type"]:
-                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], color='blue', weight=lsa["ls_tos_0_metrics"])
+                g.add_edge(lsa["lsa_id"], lsa["ls_link_id"], color='blue', weight=lsa["ls_tos_0_metrics"], area=lsa["area"])
 
         # Set shape for all nodes to circle
         for lsa in lsdb:
@@ -117,7 +117,7 @@ class LSV:
 
         # Weight labels
         for u, v, d in g.edges(data=True):
-            d['label'] = d.get('weight', '')
+            d['label'] = f"Area: {d.get('area', '')} \nCost: {d.get('weight', '')}"
 
         return g
 
@@ -140,4 +140,3 @@ if __name__ == "__main__":
     parser.add_argument("--out", help="Output file name, defaults to {}".format(DEFAULT_OUTFILE))
     parser.add_argument("--dump", action='store_true', help="Will print LSDB object as Yaml to stdout")
     main(parser.parse_args())
-
