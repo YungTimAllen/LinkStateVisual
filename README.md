@@ -1,6 +1,6 @@
 # LinkStateVisual
 
-![Render from above output](https://i.imgur.com/J62lLgw.png)
+![Rendered topo](https://imgur.com/xuIgoUu.png)
 
 Parses Cisco IOS CLI output for "show ip ospf database router" (the OSPF LSDB) to YAML, then creates a Networkx graph, which is rendered with pyGraphViz (To PNG file)
 
