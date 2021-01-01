@@ -18,7 +18,7 @@ Command FSM template and CLITable code sourced from https://github.com/networkto
 * textfsm 
 * pyaml
 
-*NOTE that textfsm WILL NOT work on Windows.*
+*NOTE that textfsm WILL NOT work on Windows, unless via WSL*
 
 ## Current Styleguide
 
